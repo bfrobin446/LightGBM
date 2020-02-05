@@ -183,6 +183,8 @@ const std::unordered_set<std::string>& Config::parameter_set() {
   "histogram_pool_size",
   "max_depth",
   "min_data_in_leaf",
+  "min_groups_in_leaf",
+  "group_label_column",
   "min_sum_hessian_in_leaf",
   "bagging_fraction",
   "pos_bagging_fraction",
@@ -319,6 +321,11 @@ void Config::GetMembersFromString(const std::unordered_map<std::string, std::str
 
   GetInt(params, "min_data_in_leaf", &min_data_in_leaf);
   CHECK_GE(min_data_in_leaf, 0);
+
+  GetInt(params, "min_groups_in_leaf", &min_groups_in_leaf);
+  CHECK(min_groups_in_leaf >=1);
+
+  GetInt(params, "group_label_column", &group_label_column);
 
   GetDouble(params, "min_sum_hessian_in_leaf", &min_sum_hessian_in_leaf);
   CHECK_GE(min_sum_hessian_in_leaf, 0.0);
@@ -601,6 +608,8 @@ std::string Config::SaveMembersToString() const {
   str_buf << "[histogram_pool_size: " << histogram_pool_size << "]\n";
   str_buf << "[max_depth: " << max_depth << "]\n";
   str_buf << "[min_data_in_leaf: " << min_data_in_leaf << "]\n";
+  str_buf << "[min_groups_in_leaf: " << min_groups_in_leaf << "]\n";
+  str_buf << "[group_label_column: " << group_label_column << "]\n";
   str_buf << "[min_sum_hessian_in_leaf: " << min_sum_hessian_in_leaf << "]\n";
   str_buf << "[bagging_fraction: " << bagging_fraction << "]\n";
   str_buf << "[pos_bagging_fraction: " << pos_bagging_fraction << "]\n";
