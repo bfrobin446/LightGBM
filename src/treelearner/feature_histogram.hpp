@@ -22,6 +22,8 @@
 
 namespace LightGBM {
 
+typedef std::function<bool (const std::vector<uint32_t> &, bool)> threshold_eval_func_t;
+
 class FeatureMetainfo {
  public:
   int num_bin;
@@ -82,10 +84,15 @@ class FeatureHistogram {
     }
   }
 
-  void FindBestThreshold(double sum_gradient, double sum_hessian,
-                         data_size_t num_data,
-                         const ConstraintEntry& constraints,
-                         SplitInfo* output) {
+  void FindBestThreshold(
+    double sum_gradient,
+    double sum_hessian,
+    data_size_t num_data,
+    const ConstraintEntry& constraints,
+    SplitInfo* output,
+    threshold_eval_func_t check_threshold = nullptr
+  ) {
+    check_threshold_ = check_threshold;
     output->default_left = true;
     output->gain = kMinScore;
     find_best_threshold_fun_(sum_gradient, sum_hessian + 2 * kEpsilon, num_data,
@@ -790,6 +797,9 @@ class FeatureHistogram {
     double best_gain = kMinScore;
     data_size_t best_left_count = 0;
     uint32_t best_threshold = static_cast<uint32_t>(meta_->num_bin);
+    // If we have a callback to check thresholds for legality, that callback needs a vector
+    // for compatibility with the categorical case.
+    std::vector<uint32_t> thresholds = { best_threshold };
     const double cnt_factor = num_data / sum_hessian;
     if (REVERSE) {
       double sum_right_gradient = 0.0f;
@@ -835,6 +845,26 @@ class FeatureHistogram {
         if (USE_RAND) {
           if (t - 1 + offset != rand_threshold) {
             continue;
+          // current split gain
+          double current_gain = GetSplitGains(sum_left_gradient, sum_left_hessian, sum_right_gradient, sum_right_hessian,
+                                              meta_->config->lambda_l1, meta_->config->lambda_l2, meta_->config->max_delta_step,
+                                              constraints, meta_->monotone_type);
+          // gain with split is worse than without split
+          if (current_gain <= min_gain_shift) continue;
+
+          // better split point
+          if (current_gain > best_gain) {
+            thresholds[0] = static_cast<uint32_t>(t - 1 + offset);
+            if (check_threshold_ && !check_threshold_(thresholds, true)) {
+              continue;
+            }
+            is_splittable_ = true;
+            best_left_count = left_count;
+            best_sum_left_gradient = sum_left_gradient;
+            best_sum_left_hessian = sum_left_hessian;
+            // left is <= threshold, right is > threshold.  so this is t-1
+            best_threshold = thresholds[0];
+            best_gain = current_gain;
           }
         }
         // current split gain
@@ -922,11 +952,30 @@ class FeatureHistogram {
           }
         }
         // current split gain
-        double current_gain = GetSplitGains<USE_MC, USE_L1, USE_MAX_OUTPUT>(
-            sum_left_gradient, sum_left_hessian, sum_right_gradient,
-            sum_right_hessian, meta_->config->lambda_l1,
-            meta_->config->lambda_l2, meta_->config->max_delta_step,
-            constraints, meta_->monotone_type);
+        double current_gain = GetSplitGains(sum_left_gradient, sum_left_hessian, sum_right_gradient, sum_right_hessian,
+                                            meta_->config->lambda_l1, meta_->config->lambda_l2, meta_->config->max_delta_step,
+                                            constraints, meta_->monotone_type);
+        // gain with split is worse than without split
+        if (current_gain <= min_gain_shift) continue;
+
+        // better split point
+        if (current_gain > best_gain) {
+          thresholds[0] = static_cast<uint32_t>(t + offset);
+          if (check_threshold_ && !check_threshold_(thresholds, false)) {
+            continue;
+          }
+          is_splittable_ = true;
+          best_left_count = left_count;
+          best_sum_left_gradient = sum_left_gradient;
+          best_sum_left_hessian = sum_left_hessian;
+          best_threshold = thresholds[0];
+          best_gain = current_gain;
+      // current split gain
+      double current_gain = GetSplitGains<USE_MC, USE_L1, USE_MAX_OUTPUT>(
+          sum_left_gradient, sum_left_hessian, sum_right_gradient,
+          sum_right_hessian, meta_->config->lambda_l1,
+          meta_->config->lambda_l2, meta_->config->max_delta_step,
+          constraints, meta_->monotone_type);
         // gain with split is worse than without split
         if (current_gain <= min_gain_shift) {
           continue;
@@ -979,6 +1028,7 @@ class FeatureHistogram {
   std::function<void(double, double, data_size_t, const ConstraintEntry&,
                      SplitInfo*)>
       find_best_threshold_fun_;
+  threshold_eval_func_t check_threshold_;
 };
 
 class HistogramPool {

@@ -138,6 +138,13 @@ class SerialTreeLearner: public TreeLearner {
 
   virtual void FindBestSplitsFromHistograms(const std::vector<int8_t>& is_feature_used, bool use_subtract);
 
+  bool CheckGroupsInLeaf(
+    int leaf,
+    int feature,
+    const std::vector<uint32_t> & thresholds,
+    bool default_left
+  );
+
   /*!
   * \brief Partition tree and data according best split.
   * \param tree Current tree, will be splitted on this function.

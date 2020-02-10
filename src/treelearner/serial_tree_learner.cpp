@@ -350,6 +350,7 @@ void SerialTreeLearner::FindBestSplitsFromHistograms(
   std::vector<SplitInfo> larger_best(share_state_->num_threads);
   std::vector<int8_t> smaller_node_used_features = col_sampler_.GetByNode();
   std::vector<int8_t> larger_node_used_features = col_sampler_.GetByNode();
+  threshold_eval_func_t check_threshold = nullptr;
   OMP_INIT_EX();
 // find splits
 #pragma omp parallel for schedule(static) num_threads(share_state_->num_threads)
@@ -406,6 +407,15 @@ void SerialTreeLearner::FindBestSplitsFromHistograms(
     auto larger_best_idx = ArrayArgs<SplitInfo>::ArgMax(larger_best);
     best_split_per_leaf_[leaf] = larger_best[larger_best_idx];
   }
+}
+
+bool SerialTreeLearner::CheckGroupsInLeaf(
+  int leaf,
+  int feature,
+  const std::vector<uint32_t> & thresholds,
+  bool default_left
+) {
+  return false;
 }
 
 int32_t SerialTreeLearner::ForceSplits(Tree* tree, int* left_leaf,
@@ -672,10 +682,22 @@ void SerialTreeLearner::ComputeBestSplitForFeature(
   if (!is_feature_used) {
     return;
   }
+  threshold_eval_func_t check_threshold = nullptr;
+  if (config_->min_groups_in_leaf >= 2) {
+    check_threshold = std::bind(
+      &SerialTreeLearner::CheckGroupsInLeaf,
+      this,
+      leaf_splits->LeafIndex(),
+      real_fidx,
+      std::placeholders::_1,
+      std::placeholders::_2
+    );
+  }
+
   SplitInfo new_split;
   histogram_array_[feature_index].FindBestThreshold(
       leaf_splits->sum_gradients(), leaf_splits->sum_hessians(), num_data,
-      constraints_->Get(leaf_splits->leaf_index()), &new_split);
+      constraints_->Get(leaf_splits->leaf_index()), &new_split, check_threshold);
   new_split.feature = real_fidx;
   if (cegb_ != nullptr) {
     new_split.gain -=
