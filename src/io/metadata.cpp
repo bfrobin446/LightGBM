@@ -364,6 +364,11 @@ void Metadata::SetQuery(const data_size_t* query, data_size_t len) {
   query_load_from_file_ = false;
 }
 
+void Metadata::SetDiversityGroups(const double* group_labels, data_size_t len) {
+  diversity_groups_.resize(len);
+  std::copy_n(group_labels, len, diversity_groups_.begin());
+}
+
 void Metadata::LoadWeights() {
   num_weights_ = 0;
   std::string weight_filename(data_filename_);

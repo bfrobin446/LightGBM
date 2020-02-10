@@ -98,6 +98,8 @@ class Metadata {
   */
   void SetInitScore(const double* init_score, data_size_t len);
 
+  void SetDiversityGroups(const double* group_labels, data_size_t len);
+
 
   /*!
   * \brief Save binary data to file
@@ -246,6 +248,8 @@ class Metadata {
   bool weight_load_from_file_;
   bool query_load_from_file_;
   bool init_score_load_from_file_;
+  /*! \brief group assignments for ``min_groups_in_leaf`` */
+  std::vector<int> diversity_groups_;
 };
 
 
