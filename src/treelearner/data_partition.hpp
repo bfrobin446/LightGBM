@@ -120,6 +120,23 @@ class DataPartition {
   }
 
   /*!
+   * \brief Get the data indices that would fall on each side of a proposed split without mutating the DataPartition.
+   */
+  data_size_t PeekSplit(
+    int leaf, const Dataset * dataset, int feature,
+    const std::vector<uint32_t> & thresholds, bool default_left,
+    data_size_t * left_indices, data_size_t * right_indices
+  ) const {
+    const data_size_t * begin = indices_.data() + leaf_begin_[leaf];
+    const data_size_t cnt = leaf_count_[leaf];
+    return dataset->Split(
+      feature, thresholds.data(), thresholds.size(), default_left,
+      begin, cnt,
+      left_indices, right_indices
+    );
+  };
+
+  /*!
   * \brief SetLabelAt used data indices before training, used for bagging
   * \param used_data_indices indices of used data
   * \param num_used_data number of used data

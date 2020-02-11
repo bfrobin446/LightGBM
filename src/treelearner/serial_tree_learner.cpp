@@ -415,7 +415,27 @@ bool SerialTreeLearner::CheckGroupsInLeaf(
   const std::vector<uint32_t> & thresholds,
   bool default_left
 ) {
-  return false;
+  data_size_t rows_in_parent = data_partition_->leaf_count(leaf);
+  std::vector<data_size_t> left_indices(rows_in_parent), right_indices(rows_in_parent);
+  
+  data_size_t count_left = data_partition_->PeekSplit(
+    leaf, train_data_, feature,
+    thresholds, default_left,
+    left_indices.data(), right_indices.data()
+  );
+  left_indices.resize(count_left);
+  right_indices.resize(rows_in_parent - count_left);
+
+  const auto & group_labels = train_data_->metadata().diversity_groups();
+  std::set<int> left_groups, right_groups;
+  for (int i: left_indices) {
+    left_groups.insert(group_labels[i]);
+  }
+  for (int i: right_indices) {
+    right_groups.insert(group_labels[i]);
+  }
+  return left_groups.size() >= config_->min_groups_in_leaf
+    && right_groups.size() >= config_->min_groups_in_leaf;
 }
 
 int32_t SerialTreeLearner::ForceSplits(Tree* tree, int* left_leaf,

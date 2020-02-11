@@ -202,6 +202,10 @@ class Metadata {
     }
   }
 
+  inline const std::vector<int> & diversity_groups() const {
+    return diversity_groups_;
+  }
+
   /*!
   * \brief Get size of initial scores
   */
