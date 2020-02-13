@@ -38,6 +38,7 @@ using json11::Json;
 
 /*! \brief forward declaration */
 class CostEfficientGradientBoosting;
+struct SerialCheckGroupsState;
 /*!
 * \brief Used for learning a tree by single machine
 */
@@ -142,7 +143,8 @@ class SerialTreeLearner: public TreeLearner {
     int leaf,
     int feature,
     const std::vector<uint32_t> & thresholds,
-    bool default_left
+    bool default_left,
+    SerialCheckGroupsState * context
   );
 
   /*!

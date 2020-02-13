@@ -342,6 +342,90 @@ void SerialTreeLearner::ConstructHistograms(
   }
 }
 
+struct SerialCheckGroupsState {
+  threshold_set_t rightmost_illegal_left, leftmost_legal, rightmost_legal, leftmost_illegal_right;
+
+  /*
+   * Compare two sets of thresholds.
+   * Return 1 if the `left` argument is "greater" in the sense of producing a larger left child,
+   * 0 if equal, and -1 otherwise.
+   */
+  static int compare_thresholds(const threshold_set_t & left, const threshold_set_t & right) {
+    if (left.size() == 1 && right.size() == 1) {
+      if (left[0] > right[0]) {
+        return -1;
+      } else if (left[0] == right[0]) {
+        return 0;
+      } else {
+        return 1;
+      }
+    } else {
+      /* TODO: Multi-valued thresholds arise when splitting categorical columns. How are they interpreted?
+       * Until this is implemented, return something random to make the compiler happy.
+       */
+      return 0;
+    }
+  }
+
+  /* Test whether a threshold is known to be legal or illegal based on history.
+   * Returns 1 for legal, -1 for illegal, and 0 for not yet known.
+   */
+  int check_threshold(const threshold_set_t & new_th) {
+    if (!rightmost_illegal_left.empty() && compare_thresholds(new_th, rightmost_illegal_left) != 1) {
+      return -1;
+    }
+    if (!leftmost_legal.empty() && !rightmost_legal.empty()
+        && compare_thresholds(new_th, leftmost_legal) != -1
+        && compare_thresholds(new_th, rightmost_legal) != 1) {
+      return 1;
+    }
+    if (!leftmost_illegal_right.empty() && compare_thresholds(new_th, rightmost_illegal_left) != -1) {
+      return -1;
+    }
+    return 0;
+  }
+
+  void found_illegal(const threshold_set_t & new_th) {
+    if (leftmost_legal.empty() || rightmost_legal.empty()) {
+      /* Until we find at least one legal value, we just keep track of the last illegal value we saw.
+       * When we find a legal value, we'll know which side to keep it on. */
+      rightmost_illegal_left = leftmost_illegal_right = new_th;
+      return;
+    }
+    if (compare_thresholds(new_th, leftmost_legal) == -1
+        && (rightmost_illegal_left.empty() || compare_thresholds(new_th, rightmost_illegal_left) == 1)) {
+      rightmost_illegal_left = new_th;
+      return;
+    }
+    if (compare_thresholds(new_th, rightmost_legal) == 1
+        && (leftmost_illegal_right.empty() || compare_thresholds(new_th, leftmost_illegal_right) == -1)) {
+      leftmost_illegal_right = new_th;
+      return;
+    }
+  }
+
+  void found_legal(const threshold_set_t & new_th) {
+    if (leftmost_legal.empty() || rightmost_legal.empty()) {
+      leftmost_legal = rightmost_legal = new_th;
+      if (!rightmost_illegal_left.empty() && compare_thresholds(rightmost_illegal_left, new_th) != -1) {
+        rightmost_illegal_left = {};
+      }
+      if (!leftmost_illegal_right.empty() && compare_thresholds(leftmost_illegal_right, new_th) != 1) {
+        leftmost_illegal_right = {};
+      }
+      return;
+    }
+    if (compare_thresholds(new_th, leftmost_legal) == -1) {
+      leftmost_legal = new_th;
+      return;
+    }
+    if (compare_thresholds(new_th, rightmost_legal) == 1) {
+      rightmost_legal = new_th;
+      return;
+    }
+  }
+};
+
 void SerialTreeLearner::FindBestSplitsFromHistograms(
     const std::vector<int8_t>& is_feature_used, bool use_subtract) {
   Common::FunctionTimer fun_timer(
@@ -413,8 +497,13 @@ bool SerialTreeLearner::CheckGroupsInLeaf(
   int leaf,
   int feature,
   const std::vector<uint32_t> & thresholds,
-  bool default_left
+  bool default_left,
+  SerialCheckGroupsState * context
 ) {
+  int cached_answer = context->check_threshold(thresholds);
+  if (cached_answer) {
+    return (cached_answer == 1);
+  }
   data_size_t rows_in_parent = data_partition_->leaf_count(leaf);
   std::vector<data_size_t> left_indices(rows_in_parent), right_indices(rows_in_parent);
   
@@ -434,8 +523,13 @@ bool SerialTreeLearner::CheckGroupsInLeaf(
   for (int i: right_indices) {
     right_groups.insert(group_labels[i]);
   }
-  return left_groups.size() >= config_->min_groups_in_leaf
-    && right_groups.size() >= config_->min_groups_in_leaf;
+  bool is_legal = (left_groups.size() >= config_->min_groups_in_leaf
+    && right_groups.size() >= config_->min_groups_in_leaf);
+  if (is_legal) {
+    context->found_legal(thresholds);
+  } else {
+    context->found_illegal(thresholds);
+  }
 }
 
 int32_t SerialTreeLearner::ForceSplits(Tree* tree, int* left_leaf,
@@ -703,6 +797,7 @@ void SerialTreeLearner::ComputeBestSplitForFeature(
     return;
   }
   threshold_eval_func_t check_threshold = nullptr;
+  SerialCheckGroupsState context;
   if (config_->min_groups_in_leaf >= 2) {
     check_threshold = std::bind(
       &SerialTreeLearner::CheckGroupsInLeaf,
@@ -710,7 +805,8 @@ void SerialTreeLearner::ComputeBestSplitForFeature(
       leaf_splits->LeafIndex(),
       real_fidx,
       std::placeholders::_1,
-      std::placeholders::_2
+      std::placeholders::_2,
+      &context
     );
   }
 

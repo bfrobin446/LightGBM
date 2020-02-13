@@ -22,7 +22,8 @@
 
 namespace LightGBM {
 
-typedef std::function<bool (const std::vector<uint32_t> &, bool)> threshold_eval_func_t;
+typedef std::vector<uint32_t> threshold_set_t;
+typedef std::function<bool (const threshold_set_t &, bool)> threshold_eval_func_t;
 
 class FeatureMetainfo {
  public:
