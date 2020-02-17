@@ -936,22 +936,24 @@ inline bool CheckASCII(const std::string& s) {
   return true;
 }
 
-inline bool CheckAllowedJSON(const std::string& s) {
-  unsigned char char_code;
-  for (auto c : s) {
-    char_code = static_cast<unsigned char>(c);
-    if (char_code == 34      // "
-        || char_code == 44   // ,
-        || char_code == 58   // :
-        || char_code == 91   // [
-        || char_code == 93   // ]
-        || char_code == 123  // {
-        || char_code == 125  // }
-        ) {
-      return false;
+const std::string JSON_SPECIAL_CHARS = "\",:[]{}\\";
+
+inline bool CharIsJSONSpecial(char c) {
+    return JSON_SPECIAL_CHARS.find(c) != std::string::npos;
+}
+inline bool AnyCharIsJSONSpecial(const std::string& s) {
+    return s.find_first_of(JSON_SPECIAL_CHARS) != std::string::npos;
+}
+
+inline std::string EscapeForJSON(const std::string & s) {
+    std::string out;
+    for (char c: s) {
+        if (CharIsJSONSpecial(c)) {
+            out.push_back('\\');
+        }
+        out.push_back(c);
     }
-  }
-  return true;
+    return out;
 }
 
 inline int RoundInt(double x) {
