@@ -33,7 +33,11 @@ std::string GBDT::DumpModel(int start_iteration, int num_iteration) const {
 
   str_buf << "\"average_output\":" << (average_output_ ? "true" : "false") << ",\n";
 
-  str_buf << "\"feature_names\":[\"" << Common::Join(feature_names_, "\",\"")
+  std::vector<std::string> escaped_feature_names(feature_names_.size());
+  for (size_t i = 0; i < feature_names_.size(); ++i) {
+    escaped_feature_names[i] = Common::EscapeForJSON(feature_names_[i]);
+  }
+  str_buf << "\"feature_names\":[\"" << Common::Join(escaped_feature_names, "\",\"")
           << "\"]," << '\n';
 
   str_buf << "\"monotone_constraints\":["
@@ -66,7 +70,7 @@ std::string GBDT::DumpModel(int start_iteration, int num_iteration) const {
   for (size_t i = 0; i < feature_importances.size(); ++i) {
     size_t feature_importances_int = static_cast<size_t>(feature_importances[i]);
     if (feature_importances_int > 0) {
-      pairs.emplace_back(feature_importances_int, feature_names_[i]);
+      pairs.emplace_back(feature_importances_int, escaped_feature_names[i]);
     }
   }
   str_buf << '\n' << "\"feature_importances\":" << "{";
