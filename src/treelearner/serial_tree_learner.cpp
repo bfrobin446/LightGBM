@@ -802,7 +802,7 @@ void SerialTreeLearner::ComputeBestSplitForFeature(
     check_threshold = std::bind(
       &SerialTreeLearner::CheckGroupsInLeaf,
       this,
-      leaf_splits->LeafIndex(),
+      leaf_splits->leaf_index(),
       real_fidx,
       std::placeholders::_1,
       std::placeholders::_2,
