@@ -846,48 +846,30 @@ class FeatureHistogram {
         if (USE_RAND) {
           if (t - 1 + offset != rand_threshold) {
             continue;
-          // current split gain
-          double current_gain = GetSplitGains(sum_left_gradient, sum_left_hessian, sum_right_gradient, sum_right_hessian,
-                                              meta_->config->lambda_l1, meta_->config->lambda_l2, meta_->config->max_delta_step,
-                                              constraints, meta_->monotone_type);
-          // gain with split is worse than without split
-          if (current_gain <= min_gain_shift) continue;
-
-          // better split point
-          if (current_gain > best_gain) {
-            thresholds[0] = static_cast<uint32_t>(t - 1 + offset);
-            if (check_threshold_ && !check_threshold_(thresholds, true)) {
-              continue;
-            }
-            is_splittable_ = true;
-            best_left_count = left_count;
-            best_sum_left_gradient = sum_left_gradient;
-            best_sum_left_hessian = sum_left_hessian;
-            // left is <= threshold, right is > threshold.  so this is t-1
-            best_threshold = thresholds[0];
-            best_gain = current_gain;
           }
         }
         // current split gain
         double current_gain = GetSplitGains<USE_MC, USE_L1, USE_MAX_OUTPUT>(
-            sum_left_gradient, sum_left_hessian, sum_right_gradient,
-            sum_right_hessian, meta_->config->lambda_l1,
-            meta_->config->lambda_l2, meta_->config->max_delta_step,
-            constraints, meta_->monotone_type);
+          sum_left_gradient, sum_left_hessian, sum_right_gradient,
+          sum_right_hessian, meta_->config->lambda_l1,
+          meta_->config->lambda_l2, meta_->config->max_delta_step,
+          constraints, meta_->monotone_type
+        );
         // gain with split is worse than without split
-        if (current_gain <= min_gain_shift) {
-          continue;
-        }
+        if (current_gain <= min_gain_shift) continue;
 
-        // mark to is splittable
-        is_splittable_ = true;
         // better split point
         if (current_gain > best_gain) {
+          thresholds[0] = static_cast<uint32_t>(t - 1 + offset);
+          if (check_threshold_ && !check_threshold_(thresholds, true)) {
+            continue;
+          }
+          is_splittable_ = true;
           best_left_count = left_count;
           best_sum_left_gradient = sum_left_gradient;
           best_sum_left_hessian = sum_left_hessian;
           // left is <= threshold, right is > threshold.  so this is t-1
-          best_threshold = static_cast<uint32_t>(t - 1 + offset);
+          best_threshold = thresholds[0];
           best_gain = current_gain;
         }
       }
@@ -953,9 +935,12 @@ class FeatureHistogram {
           }
         }
         // current split gain
-        double current_gain = GetSplitGains(sum_left_gradient, sum_left_hessian, sum_right_gradient, sum_right_hessian,
-                                            meta_->config->lambda_l1, meta_->config->lambda_l2, meta_->config->max_delta_step,
-                                            constraints, meta_->monotone_type);
+        double current_gain = GetSplitGains<USE_MC, USE_L1, USE_MAX_OUTPUT>(
+          sum_left_gradient, sum_left_hessian, sum_right_gradient,
+          sum_right_hessian, meta_->config->lambda_l1,
+          meta_->config->lambda_l2, meta_->config->max_delta_step,
+          constraints, meta_->monotone_type
+        );
         // gain with split is worse than without split
         if (current_gain <= min_gain_shift) continue;
 
@@ -970,26 +955,6 @@ class FeatureHistogram {
           best_sum_left_gradient = sum_left_gradient;
           best_sum_left_hessian = sum_left_hessian;
           best_threshold = thresholds[0];
-          best_gain = current_gain;
-      // current split gain
-      double current_gain = GetSplitGains<USE_MC, USE_L1, USE_MAX_OUTPUT>(
-          sum_left_gradient, sum_left_hessian, sum_right_gradient,
-          sum_right_hessian, meta_->config->lambda_l1,
-          meta_->config->lambda_l2, meta_->config->max_delta_step,
-          constraints, meta_->monotone_type);
-        // gain with split is worse than without split
-        if (current_gain <= min_gain_shift) {
-          continue;
-        }
-
-        // mark to is splittable
-        is_splittable_ = true;
-        // better split point
-        if (current_gain > best_gain) {
-          best_left_count = left_count;
-          best_sum_left_gradient = sum_left_gradient;
-          best_sum_left_hessian = sum_left_hessian;
-          best_threshold = static_cast<uint32_t>(t + offset);
           best_gain = current_gain;
         }
       }
