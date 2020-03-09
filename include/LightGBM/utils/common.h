@@ -30,7 +30,7 @@
 #include <malloc.h>
 #elif MM_MALLOC
 #include <mm_malloc.h>
-#elif defined(__GNUC__)
+#elif defined(__GNUC__) && !defined(__clang__)
 #include <malloc.h>
 #define _mm_malloc(a, b) memalign(b, a)
 #define _mm_free(a) free(a)
