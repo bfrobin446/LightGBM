@@ -798,12 +798,12 @@ void SerialTreeLearner::ComputeBestSplitForFeature(
   }
   threshold_eval_func_t check_threshold = nullptr;
   SerialCheckGroupsState context;
-  if (config_->min_groups_in_leaf >= 2) {
+  if (config_->min_groups_in_leaf >= 1) {
     check_threshold = std::bind(
       &SerialTreeLearner::CheckGroupsInLeaf,
       this,
       leaf_splits->leaf_index(),
-      real_fidx,
+      feature_index,
       std::placeholders::_1,
       std::placeholders::_2,
       &context
