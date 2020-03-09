@@ -262,7 +262,9 @@ C_API_PREDICT_CONTRIB = 3
 FIELD_TYPE_MAPPER = {"label": C_API_DTYPE_FLOAT32,
                      "weight": C_API_DTYPE_FLOAT32,
                      "init_score": C_API_DTYPE_FLOAT64,
-                     "group": C_API_DTYPE_INT32}
+                     "group": C_API_DTYPE_INT32,
+                     "diversity_group": C_API_DTYPE_INT32,
+}
 
 
 def convert_from_sliced_object(data):
@@ -731,7 +733,7 @@ class Dataset(object):
     """Dataset in LightGBM."""
 
     def __init__(self, data, label=None, reference=None,
-                 weight=None, group=None, init_score=None, silent=False,
+                 weight=None, group=None, diversity_group=None, init_score=None, silent=False,
                  feature_name='auto', categorical_feature='auto', params=None,
                  free_raw_data=True):
         """Initialize Dataset.
@@ -776,6 +778,7 @@ class Dataset(object):
         self.reference = reference
         self.weight = weight
         self.group = group
+        self.diversity_group = diversity_group
         self.init_score = init_score
         self.silent = silent
         self.feature_name = feature_name
@@ -866,7 +869,7 @@ class Dataset(object):
         self.set_init_score(init_score)
 
     def _lazy_init(self, data, label=None, reference=None,
-                   weight=None, group=None, init_score=None, predictor=None,
+                   weight=None, group=None, diversity_group=None, init_score=None, predictor=None,
                    silent=False, feature_name='auto',
                    categorical_feature='auto', params=None):
         if data is None:
@@ -955,6 +958,8 @@ class Dataset(object):
             self.set_weight(weight)
         if group is not None:
             self.set_group(group)
+        if diversity_group is not None:
+            self.set_diversity_group(diversity_group)
         if isinstance(predictor, _InnerPredictor):
             if self._predictor is None and init_score is not None:
                 warnings.warn("The init_score will be overridden by the prediction of init_model.")
@@ -1100,7 +1105,7 @@ class Dataset(object):
                 if self.used_indices is None:
                     # create valid
                     self._lazy_init(self.data, label=self.label, reference=self.reference,
-                                    weight=self.weight, group=self.group,
+                                    weight=self.weight, group=self.group, diversity_group=self.diversity_group,
                                     init_score=self.init_score, predictor=self._predictor,
                                     silent=self.silent, feature_name=self.feature_name, params=self.params)
                 else:
@@ -1111,6 +1116,8 @@ class Dataset(object):
                         group_info = np.array(self.reference.group).astype(np.int32, copy=False)
                         _, self.group = np.unique(np.repeat(range_(len(group_info)), repeats=group_info)[self.used_indices],
                                                   return_counts=True)
+                    if self.reference.diversity_group is not None:
+                        self.diversity_group = np.array(self.reference.diversity_group).astype(np.int32, copy=False)[self.used_indices]
                     self.handle = ctypes.c_void_p()
                     params_str = param_dict_to_str(self.params)
                     _safe_call(_LIB.LGBM_DatasetGetSubset(
@@ -1131,7 +1138,7 @@ class Dataset(object):
             else:
                 # create train
                 self._lazy_init(self.data, label=self.label,
-                                weight=self.weight, group=self.group,
+                                weight=self.weight, group=self.group, diversity_group=self.diversity_group,
                                 init_score=self.init_score, predictor=self._predictor,
                                 silent=self.silent, feature_name=self.feature_name,
                                 categorical_feature=self.categorical_feature, params=self.params)
@@ -1279,7 +1286,7 @@ class Dataset(object):
                 ctypes.c_int(FIELD_TYPE_MAPPER[field_name])))
             return self
         dtype = np.float32
-        if field_name == 'group':
+        if field_name in ('group', 'diversity_group'):
             dtype = np.int32
         elif field_name == 'init_score':
             dtype = np.float64
@@ -1517,6 +1524,15 @@ class Dataset(object):
         if self.handle is not None and group is not None:
             group = list_to_1d_numpy(group, np.int32, name='group')
             self.set_field('group', group)
+        return self
+    
+    def set_diversity_group(self, labels):
+        self.diversity_group = labels
+        if self.handle is not None and labels is not None:
+            self.set_field(
+                'diversity_group',
+                list_to_1d_numpy(labels, np.int32, name='diversity_group')
+            )
         return self
 
     def get_label(self):

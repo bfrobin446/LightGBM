@@ -98,7 +98,7 @@ class Metadata {
   */
   void SetInitScore(const double* init_score, data_size_t len);
 
-  void SetDiversityGroups(const double* group_labels, data_size_t len);
+  void SetDiversityGroups(const int* group_labels, data_size_t len);
 
 
   /*!

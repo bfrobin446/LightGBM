@@ -376,7 +376,7 @@ class LGBMModel(_LGBMModelBase):
         return self
 
     def fit(self, X, y,
-            sample_weight=None, init_score=None, group=None,
+            sample_weight=None, init_score=None, group=None, diversity_group=None,
             eval_set=None, eval_names=None, eval_sample_weight=None,
             eval_class_weight=None, eval_init_score=None, eval_group=None,
             eval_metric=None, early_stopping_rounds=None, verbose=True,
@@ -558,13 +558,13 @@ class LGBMModel(_LGBMModelBase):
 
         self._n_features = _X.shape[1]
 
-        def _construct_dataset(X, y, sample_weight, init_score, group, params,
+        def _construct_dataset(X, y, sample_weight, init_score, group, diversity_group, params,
                                categorical_feature='auto'):
-            return Dataset(X, label=y, weight=sample_weight, group=group,
+            return Dataset(X, label=y, weight=sample_weight, group=group, diversity_group=diversity_group,
                            init_score=init_score, params=params,
                            categorical_feature=categorical_feature)
 
-        train_set = _construct_dataset(_X, _y, sample_weight, init_score, group, params,
+        train_set = _construct_dataset(_X, _y, sample_weight, init_score, group, diversity_group, params,
                                        categorical_feature=categorical_feature)
 
         valid_sets = []
@@ -745,14 +745,15 @@ class LGBMRegressor(LGBMModel, _LGBMRegressorBase):
     """LightGBM regressor."""
 
     def fit(self, X, y,
-            sample_weight=None, init_score=None,
+            sample_weight=None, init_score=None, diversity_group=None,
             eval_set=None, eval_names=None, eval_sample_weight=None,
             eval_init_score=None, eval_metric=None, early_stopping_rounds=None,
             verbose=True, feature_name='auto', categorical_feature='auto',
             callbacks=None, init_model=None):
         """Docstring is inherited from the LGBMModel."""
         super(LGBMRegressor, self).fit(X, y, sample_weight=sample_weight,
-                                       init_score=init_score, eval_set=eval_set,
+                                       init_score=init_score, diversity_group=diversity_group,
+                                       eval_set=eval_set,
                                        eval_names=eval_names,
                                        eval_sample_weight=eval_sample_weight,
                                        eval_init_score=eval_init_score,

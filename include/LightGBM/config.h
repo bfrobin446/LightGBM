@@ -260,11 +260,8 @@ struct Config {
   // desc = Increasing ``min_data_in_leaf`` may be ineffective to reduce overfitting if a leaf can be filled with samples that are insufficiently
   // desc = independent. If these clusters of samples can be labeled, it may help to require a minimum number of clusters to be represented
   // desc = in each leaf.
-  // check = >=1
-  int min_groups_in_leaf = 1;
-
-  // desc = If ``min_groups_in_leaf`` is greater than 1, this parameter gives the index of the column to use as the group label.
-  int group_label_column = -1;
+  // check = >=0
+  int min_groups_in_leaf = 0;
 
   // alias = min_sum_hessian_per_leaf, min_sum_hessian, min_hessian, min_child_weight
   // check = >=0.0

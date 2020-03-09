@@ -411,9 +411,6 @@ void Dataset::Construct(std::vector<std::unique_ptr<BinMapper>>* bin_mappers,
     max_bin_by_feature_.assign(io_config.max_bin_by_feature.begin(),
                                io_config.max_bin_by_feature.end());
   }
-  if (io_config.min_groups_in_leaf >= 2) {
-    metadata_.SetDiversityGroups(sample_values[io_config.group_label_column], num_data_);
-  }
   forced_bin_bounds_ = forced_bins;
   max_bin_ = io_config.max_bin;
   min_data_in_bin_ = io_config.min_data_in_bin;
@@ -834,6 +831,8 @@ bool Dataset::SetIntField(const char* field_name, const int* field_data,
   name = Common::Trim(name);
   if (name == std::string("query") || name == std::string("group")) {
     metadata_.SetQuery(field_data, num_element);
+  } else if (name == "diversity_group") {
+    metadata_.SetDiversityGroups(field_data, num_element);
   } else {
     return false;
   }
